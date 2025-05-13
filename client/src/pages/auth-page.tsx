@@ -42,12 +42,17 @@ export default function AuthPage() {
   const { loginMutation, registerMutation, user, isLoading } = useAuth();
   const { toast } = useToast();
 
-  // Redirect if already logged in
+  // Redirect if already logged in or after successful login/registration
   useEffect(() => {
     if (user) {
-      navigate("/");
+      // Add a small delay to ensure state is properly updated
+      const redirectTimer = setTimeout(() => {
+        navigate("/");
+      }, 100);
+      
+      return () => clearTimeout(redirectTimer);
     }
-  }, [user, navigate]);
+  }, [user, navigate, loginMutation.isSuccess, registerMutation.isSuccess]);
 
   // Login form
   const loginForm = useForm<LoginValues>({

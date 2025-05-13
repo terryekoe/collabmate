@@ -37,7 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return await res.json();
     },
     onSuccess: (user: SelectUser) => {
+      // Invalidate and refetch the user query to ensure the auth state is updated
       queryClient.setQueryData(["/api/user"], user);
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      
       toast({
         title: "Login successful",
         description: `Welcome back, ${user.name}!`,
@@ -58,7 +61,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return await res.json();
     },
     onSuccess: (user: SelectUser) => {
+      // Invalidate and refetch the user query to ensure the auth state is updated
       queryClient.setQueryData(["/api/user"], user);
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      
       toast({
         title: "Registration successful",
         description: `Welcome to CollabMate, ${user.name}!`,
