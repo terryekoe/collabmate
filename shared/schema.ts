@@ -15,7 +15,7 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   name: text("name").notNull(),
   role: userRoleEnum("role").notNull().default('member'),
-  avatarUrl: text("avatar_url"),
+  avatarUrl: text("avatar_url"), // Database column is avatar_url
 });
 
 export const workspaces = pgTable("workspaces", {
