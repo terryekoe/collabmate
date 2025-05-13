@@ -45,6 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Login successful",
         description: `Welcome back, ${user.name}!`,
       });
+      
+      // Force a page reload to ensure proper redirection to dashboard
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 500);
     },
     onError: (error: Error) => {
       toast({
@@ -69,6 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Registration successful",
         description: `Welcome to CollabMate, ${user.name}!`,
       });
+      
+      // Force a page reload to ensure proper redirection to dashboard
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 500);
     },
     onError: (error: Error) => {
       toast({
@@ -84,7 +94,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await apiRequest("POST", "/api/logout");
     },
     onSuccess: () => {
+      // Force clear the user data and redirect
       queryClient.setQueryData(["/api/user"], null);
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      
+      // Force a page reload to clear all cached data
+      window.location.href = '/auth';
+      
       toast({
         title: "Logout successful",
         description: "You have been logged out successfully",

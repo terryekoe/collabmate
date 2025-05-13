@@ -118,7 +118,7 @@ export default function AuthPage() {
             </div>
             <CardTitle className="text-2xl font-mono">CollabMate</CardTitle>
             <CardDescription>
-              Collaborative task tracking for teams
+              End the frustration of disorganized teamwork and bring structure to your collaborative projects
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -320,8 +320,8 @@ export default function AuthPage() {
             Collaborate Better with CollabMate
           </h1>
           <p className="text-lg mb-8 text-gray-600 dark:text-[#8B949E]">
-            A GitHub-inspired platform for tracking and managing collaborative work
-            in student and corporate environments.
+            Eliminate miscommunication and missed deadlines. A platform that makes teamwork 
+            seamless by solving the chaos of collaborative work in student and corporate environments.
           </p>
           <div className="space-y-4">
             <div className="flex items-center text-left">
