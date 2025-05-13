@@ -11,6 +11,9 @@ import TasksPage from "@/pages/tasks-page";
 import FeedbackPage from "@/pages/feedback-page";
 import TeamPage from "@/pages/team-page";
 import ReportsPage from "@/pages/reports-page";
+import SettingsPage from "@/pages/settings-page";
+import ProjectsPage from "@/pages/projects-page";
+import ProjectPage from "@/pages/project-page";
 import NotFound from "@/pages/not-found";
 
 // Components
@@ -26,6 +29,9 @@ function Router() {
       <ProtectedRoute path="/feedback" component={FeedbackPage} />
       <ProtectedRoute path="/team" component={TeamPage} />
       <ProtectedRoute path="/reports" component={ReportsPage} />
+      <ProtectedRoute path="/settings" component={SettingsPage} />
+      <ProtectedRoute path="/projects" component={ProjectsPage} />
+      <ProtectedRoute path="/project/:id" component={ProjectPage} />
       <Route component={NotFound} />
     </Switch>
   );
