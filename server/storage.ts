@@ -6,12 +6,17 @@ import {
   ProjectMember, InsertProjectMember,
   Task, InsertTask,
   Feedback, InsertFeedback,
-  Activity, InsertActivity
+  Activity, InsertActivity,
+  users, workspaces, workspaceMembers, projects, projectMembers, tasks, feedback, activities
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import connectPg from "connect-pg-simple";
+import { db, pool } from "./db";
+import { eq, and, desc } from "drizzle-orm";
 
 const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
 
 // Storage interface
 export interface IStorage {
@@ -314,4 +319,257 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database storage implementation
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true 
+    });
+  }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    // Ensure required fields have default values if not provided
+    const userData = {
+      ...insertUser,
+      avatarUrl: insertUser.avatarUrl ?? null,
+      role: insertUser.role || 'member' // Default to member if not specified
+    };
+    
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  // Workspace methods
+  async getWorkspace(id: number): Promise<Workspace | undefined> {
+    const [workspace] = await db.select().from(workspaces).where(eq(workspaces.id, id));
+    return workspace;
+  }
+
+  async getWorkspacesByUserId(userId: number): Promise<Workspace[]> {
+    const members = await db.select()
+      .from(workspaceMembers)
+      .where(eq(workspaceMembers.userId, userId));
+
+    const workspaceIds = members.map(member => member.workspaceId);
+    
+    if (workspaceIds.length === 0) {
+      return [];
+    }
+    
+    return await db.select()
+      .from(workspaces)
+      .where(workspaces.id.in(workspaceIds));
+  }
+
+  async createWorkspace(insertWorkspace: InsertWorkspace): Promise<Workspace> {
+    const workspace = { 
+      ...insertWorkspace, 
+      description: insertWorkspace.description ?? null,
+      category: insertWorkspace.category ?? null,
+      deadline: insertWorkspace.deadline ?? null,
+      createdAt: new Date() 
+    };
+    const [created] = await db.insert(workspaces).values(workspace).returning();
+    return created;
+  }
+
+  // Workspace Member methods
+  async getWorkspaceMember(workspaceId: number, userId: number): Promise<WorkspaceMember | undefined> {
+    const [member] = await db.select()
+      .from(workspaceMembers)
+      .where(and(
+        eq(workspaceMembers.workspaceId, workspaceId),
+        eq(workspaceMembers.userId, userId)
+      ));
+    return member;
+  }
+
+  async getWorkspaceMembers(workspaceId: number): Promise<(WorkspaceMember & { user: User })[]> {
+    const members = await db.select()
+      .from(workspaceMembers)
+      .where(eq(workspaceMembers.workspaceId, workspaceId));
+    
+    const result = [];
+    for (const member of members) {
+      const [user] = await db.select().from(users).where(eq(users.id, member.userId));
+      if (user) {
+        result.push({ ...member, user });
+      }
+    }
+    
+    return result;
+  }
+
+  async isWorkspaceMember(workspaceId: number, userId: number): Promise<boolean> {
+    const member = await this.getWorkspaceMember(workspaceId, userId);
+    return !!member;
+  }
+
+  async addWorkspaceMember(insertMember: InsertWorkspaceMember): Promise<WorkspaceMember> {
+    const [member] = await db.insert(workspaceMembers).values(insertMember).returning();
+    return member;
+  }
+
+  // Project methods
+  async getProject(id: number): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project;
+  }
+
+  async getProjectsByWorkspaceId(workspaceId: number): Promise<Project[]> {
+    return await db.select()
+      .from(projects)
+      .where(eq(projects.workspaceId, workspaceId));
+  }
+
+  async createProject(insertProject: InsertProject): Promise<Project> {
+    const project = { ...insertProject, createdAt: new Date() };
+    const [created] = await db.insert(projects).values(project).returning();
+    return created;
+  }
+
+  // Project Member methods
+  async getProjectMember(projectId: number, userId: number): Promise<ProjectMember | undefined> {
+    const [member] = await db.select()
+      .from(projectMembers)
+      .where(and(
+        eq(projectMembers.projectId, projectId),
+        eq(projectMembers.userId, userId)
+      ));
+    return member;
+  }
+
+  async getProjectMembers(projectId: number): Promise<(ProjectMember & { user: User })[]> {
+    const members = await db.select()
+      .from(projectMembers)
+      .where(eq(projectMembers.projectId, projectId));
+    
+    const result = [];
+    for (const member of members) {
+      const [user] = await db.select().from(users).where(eq(users.id, member.userId));
+      if (user) {
+        result.push({ ...member, user });
+      }
+    }
+    
+    return result;
+  }
+
+  async isProjectMember(projectId: number, userId: number): Promise<boolean> {
+    const member = await this.getProjectMember(projectId, userId);
+    return !!member;
+  }
+
+  async addProjectMember(insertMember: InsertProjectMember): Promise<ProjectMember> {
+    const [member] = await db.insert(projectMembers).values(insertMember).returning();
+    return member;
+  }
+
+  // Task methods
+  async getTask(id: number): Promise<Task | undefined> {
+    const [task] = await db.select().from(tasks).where(eq(tasks.id, id));
+    return task;
+  }
+
+  async getTasksByProjectId(projectId: number): Promise<(Task & { assignee: User })[]> {
+    const projectTasks = await db.select()
+      .from(tasks)
+      .where(eq(tasks.projectId, projectId));
+    
+    const result = [];
+    for (const task of projectTasks) {
+      const [assignee] = await db.select().from(users).where(eq(users.id, task.assigneeId));
+      if (assignee) {
+        result.push({ ...task, assignee });
+      }
+    }
+    
+    return result;
+  }
+
+  async getTasksByAssigneeId(assigneeId: number): Promise<Task[]> {
+    return await db.select()
+      .from(tasks)
+      .where(eq(tasks.assigneeId, assigneeId));
+  }
+
+  async createTask(insertTask: InsertTask): Promise<Task> {
+    const task = { ...insertTask, createdAt: new Date() };
+    const [created] = await db.insert(tasks).values(task).returning();
+    return created;
+  }
+
+  async updateTask(id: number, taskUpdate: Partial<Task>): Promise<Task> {
+    const [updatedTask] = await db
+      .update(tasks)
+      .set(taskUpdate)
+      .where(eq(tasks.id, id))
+      .returning();
+    
+    if (!updatedTask) {
+      throw new Error("Task not found");
+    }
+    
+    return updatedTask;
+  }
+
+  // Feedback methods
+  async createFeedback(insertFeedback: InsertFeedback): Promise<Feedback> {
+    const feedbackData = { ...insertFeedback, createdAt: new Date() };
+    const [created] = await db.insert(feedback).values(feedbackData).returning();
+    return created;
+  }
+
+  async getFeedbackByWorkspaceId(workspaceId: number): Promise<Feedback[]> {
+    return await db.select()
+      .from(feedback)
+      .where(eq(feedback.workspaceId, workspaceId));
+  }
+
+  async getFeedbackByTargetUserId(targetUserId: number): Promise<Feedback[]> {
+    return await db.select()
+      .from(feedback)
+      .where(eq(feedback.targetUserId, targetUserId));
+  }
+
+  // Activity methods
+  async createActivity(insertActivity: InsertActivity): Promise<Activity> {
+    const activity = { ...insertActivity, createdAt: new Date() };
+    const [created] = await db.insert(activities).values(activity).returning();
+    return created;
+  }
+
+  async getActivitiesByWorkspaceId(workspaceId: number): Promise<(Activity & { user: User })[]> {
+    const workspaceActivities = await db.select()
+      .from(activities)
+      .where(eq(activities.workspaceId, workspaceId))
+      .orderBy(desc(activities.createdAt));
+    
+    const result = [];
+    for (const activity of workspaceActivities) {
+      const [user] = await db.select().from(users).where(eq(users.id, activity.userId));
+      if (user) {
+        result.push({ ...activity, user });
+      }
+    }
+    
+    return result;
+  }
+}
+
+// Export an instance of the DatabaseStorage implementation
+export const storage = new DatabaseStorage();
