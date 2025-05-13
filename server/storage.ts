@@ -345,7 +345,7 @@ export class DatabaseStorage implements IStorage {
     // Ensure required fields have default values if not provided
     const userData = {
       ...insertUser,
-      avatarUrl: insertUser.avatarUrl ?? null,
+      avatar_url: insertUser.avatarUrl ?? null, // Match database column naming convention
       role: insertUser.role || 'member' // Default to member if not specified
     };
     
