@@ -211,6 +211,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all projects the user has access to
+  app.get("/api/projects", isAuthenticated, async (req, res) => {
+    try {
+      // Get all workspaces the user is a member of
+      const workspaces = await storage.getWorkspacesByUserId(req.user.id);
+      
+      // Get projects from all workspaces
+      let allProjects = [];
+      for (const workspace of workspaces) {
+        const projects = await storage.getProjectsByWorkspaceId(workspace.id);
+        allProjects = [...allProjects, ...projects];
+      }
+      
+      res.json(allProjects);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch projects" });
+    }
+  });
+
+  // Get a specific project by ID
+  app.get("/api/projects/:id", isAuthenticated, async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const project = await storage.getProject(projectId);
+      
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Check if user has access to the project's workspace
+      const isMember = await storage.isWorkspaceMember(project.workspaceId, req.user.id);
+      if (!isMember) {
+        return res.status(403).json({ message: "You don't have access to this project" });
+      }
+      
+      res.json(project);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch project" });
+    }
+  });
+
   // Project Members Routes
   app.post("/api/projects/:id/members", isLeader, async (req, res) => {
     try {
@@ -478,6 +519,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(activities);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch activities" });
+    }
+  });
+
+  // Activities
+  app.get("/api/activities/recent", isAuthenticated, async (req, res) => {
+    try {
+      // In a real application, we would fetch activities from the database
+      // For now, we'll return placeholder data
+      res.json([
+        {
+          id: 1,
+          type: "task_created",
+          content: "Created a new task: Design login page",
+          createdAt: new Date(Date.now() - 1000 * 60 * 60), // 1 hour ago
+          user: {
+            id: 1,
+            name: "John Doe",
+            role: "admin"
+          }
+        },
+        {
+          id: 2,
+          type: "task_completed",
+          content: "Completed task: Setup project structure",
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+          user: {
+            id: 2,
+            name: "Jane Smith",
+            role: "leader"
+          }
+        },
+        {
+          id: 3,
+          type: "workspace_created",
+          content: "Created a new workspace: Mobile App Development",
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
+          user: {
+            id: 1,
+            name: "John Doe",
+            role: "admin"
+          }
+        },
+        {
+          id: 4,
+          type: "feedback_received",
+          content: "Received feedback on your performance",
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
+          user: {
+            id: 3,
+            name: "Bob Johnson",
+            role: "member"
+          }
+        }
+      ]);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch activities" });
+    }
+  });
+
+  // User profile settings
+  app.patch("/api/user/profile", isAuthenticated, async (req, res) => {
+    try {
+      // In a real app, we would validate the fields
+      const { name, email, avatarUrl } = req.body;
+      
+      // For now, since we're using in-memory storage, we'll just send a success response
+      res.json({ 
+        ...req.user,
+        name: name || req.user.name,
+        email: email || req.user.email,
+        avatarUrl: avatarUrl || req.user.avatarUrl
+      });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Password change
+  app.post("/api/user/password", isAuthenticated, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      
+      // In a real app, we would check the current password and update
+      // For now, we'll just send a success response
+      res.json({ success: true, message: "Password updated successfully" });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update password" });
+    }
+  });
+
+  // User notification settings
+  app.patch("/api/user/notifications", isAuthenticated, async (req, res) => {
+    try {
+      // In a real app, we would update notification settings
+      // For now, we'll just send a success response
+      res.json({ 
+        success: true, 
+        message: "Notification settings updated successfully",
+        settings: req.body
+      });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update notification settings" });
     }
   });
 
