@@ -370,9 +370,9 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
     
-    return await db.select()
-      .from(workspaces)
-      .where(workspaces.id.in(workspaceIds));
+    // Use orWhere to create a OR condition for each workspace ID
+    const workspaceList = await db.select().from(workspaces);
+    return workspaceList.filter(workspace => workspaceIds.includes(workspace.id));
   }
 
   async createWorkspace(insertWorkspace: InsertWorkspace): Promise<Workspace> {
@@ -420,7 +420,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addWorkspaceMember(insertMember: InsertWorkspaceMember): Promise<WorkspaceMember> {
-    const [member] = await db.insert(workspaceMembers).values(insertMember).returning();
+    const memberData = {
+      ...insertMember,
+      role: insertMember.role || 'member' // Set default role if not specified
+    };
+    const [member] = await db.insert(workspaceMembers).values(memberData).returning();
     return member;
   }
 
@@ -437,7 +441,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createProject(insertProject: InsertProject): Promise<Project> {
-    const project = { ...insertProject, createdAt: new Date() };
+    const project = { 
+      ...insertProject, 
+      description: insertProject.description ?? null,
+      deadline: insertProject.deadline ?? null,
+      createdAt: new Date() 
+    };
     const [created] = await db.insert(projects).values(project).returning();
     return created;
   }
@@ -508,7 +517,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTask(insertTask: InsertTask): Promise<Task> {
-    const task = { ...insertTask, createdAt: new Date() };
+    const task = { 
+      ...insertTask, 
+      description: insertTask.description ?? null,
+      deadline: insertTask.deadline ?? null,
+      status: insertTask.status || 'todo',
+      priority: insertTask.priority || 'medium',
+      progress: insertTask.progress || 0,
+      createdAt: new Date() 
+    };
     const [created] = await db.insert(tasks).values(task).returning();
     return created;
   }
@@ -529,7 +546,11 @@ export class DatabaseStorage implements IStorage {
 
   // Feedback methods
   async createFeedback(insertFeedback: InsertFeedback): Promise<Feedback> {
-    const feedbackData = { ...insertFeedback, createdAt: new Date() };
+    const feedbackData = { 
+      ...insertFeedback, 
+      comments: insertFeedback.comments ?? null,
+      createdAt: new Date() 
+    };
     const [created] = await db.insert(feedback).values(feedbackData).returning();
     return created;
   }
@@ -548,7 +569,12 @@ export class DatabaseStorage implements IStorage {
 
   // Activity methods
   async createActivity(insertActivity: InsertActivity): Promise<Activity> {
-    const activity = { ...insertActivity, createdAt: new Date() };
+    const activity = { 
+      ...insertActivity, 
+      entityId: insertActivity.entityId ?? null,
+      entityType: insertActivity.entityType ?? null,
+      createdAt: new Date() 
+    };
     const [created] = await db.insert(activities).values(activity).returning();
     return created;
   }
